@@ -64,7 +64,7 @@ export default function LibraryPage() {
       const plan: WorkoutPlan = {
         id: generateId(),
         name: newWorkoutName || 'New Workout',
-        split: pendingExercise.split,
+        splits: [pendingExercise.split],
         status: 'DRAFT',
         date: null,
         exercises: [],
@@ -87,6 +87,7 @@ export default function LibraryPage() {
       targetSets: pendingExercise.defaultSets,
       targetReps: pendingExercise.defaultReps,
       lastWeight: null,
+      lastWeightDate: null,
       order: existingCount,
     };
 
@@ -127,7 +128,7 @@ export default function LibraryPage() {
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70"
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 w-full max-w-sm mx-4 mb-4 sm:mb-0 space-y-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 w-full max-w-sm mx-4 mb-20 sm:mb-0 space-y-4">
             <div>
               <h2 className="text-base font-bold text-zinc-100">Add to Workout</h2>
               <p className="text-sm text-zinc-400 mt-0.5 truncate">{pendingExercise.name}</p>
@@ -155,7 +156,7 @@ export default function LibraryPage() {
                           />
                           <div>
                             <p className="text-sm font-semibold text-zinc-100">{w.name}</p>
-                            <p className="text-[10px] text-zinc-500">{w.split} · {w.exercises.length} exercises</p>
+                            <p className="text-[10px] text-zinc-500">{w.splits.join(' + ')} · {w.exercises.length} exercises</p>
                           </div>
                         </label>
                       ))}

@@ -5,7 +5,7 @@ import { WorkoutExercise } from '@/lib/types';
 interface ExerciseSlotProps {
   exercise: WorkoutExercise;
   onRemove: (exerciseId: string) => void;
-  onUpdate: (exerciseId: string, field: 'targetSets' | 'targetReps' | 'lastWeight', value: string | number | null) => void;
+  onUpdate: (exerciseId: string, field: 'targetSets' | 'targetReps' | 'lastWeight' | 'lastWeightDate', value: string | number | null) => void;
   unitSystem?: 'LBS' | 'KG';
 }
 
@@ -68,6 +68,7 @@ export default function ExerciseSlot({ exercise, onRemove, onUpdate, unitSystem 
           onChange={(e) => {
             const val = e.target.value === '' ? null : parseFloat(e.target.value);
             onUpdate(exercise.exerciseId, 'lastWeight', val);
+            onUpdate(exercise.exerciseId, 'lastWeightDate', new Date().toISOString());
           }}
           className="w-16 bg-zinc-700 border border-zinc-600 rounded text-center text-sm font-bold text-zinc-100 tabular-nums focus:outline-none focus:border-[#E8593C] py-1 placeholder:text-zinc-600"
           placeholder="—"

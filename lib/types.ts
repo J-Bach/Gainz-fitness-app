@@ -39,18 +39,28 @@ export interface WorkoutExercise {
   targetSets: number;
   targetReps: string;
   lastWeight: number | null;
+  lastWeightDate: string | null; // ISO timestamp, set when lastWeight is updated
   order: number;
 }
 
 export interface WorkoutPlan {
   id: string;
   name: string;
-  split: SplitCategory;
+  splits: SplitCategory[];
   status: WorkoutStatus;
   date: string | null;
   exercises: WorkoutExercise[];
   createdAt: string;
   lockedAt: string | null;
+}
+
+export interface PREntry {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  weight: number;
+  unitSystem: UnitSystem;
+  date: string; // ISO 8601
 }
 
 export interface SetLog {

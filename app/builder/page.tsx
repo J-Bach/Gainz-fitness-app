@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useWorkoutStore } from '@/lib/store/workoutStore';
 import PlanBuilder from '@/components/builder/PlanBuilder';
 import MuscleOverlay from '@/components/diagram/MuscleOverlay';
 
 export default function BuilderPage() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const activeWorkoutId = useWorkoutStore((s) => s.activeWorkoutId);
 
   return (
     <main className="max-w-5xl mx-auto px-4 pt-6 pb-4">
@@ -17,7 +17,7 @@ export default function BuilderPage() {
       <div className="flex flex-col lg:flex-row gap-4">
         {/* PlanBuilder takes up all available space */}
         <div className="flex-1 min-w-0">
-          <PlanBuilder onSelectWorkout={setSelectedId} />
+          <PlanBuilder />
         </div>
 
         {/* Diagram panel — stacks below on mobile, 220px column on desktop */}
@@ -26,7 +26,7 @@ export default function BuilderPage() {
             <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-3">
               Muscle Coverage
             </p>
-            <MuscleOverlay workoutId={selectedId} />
+            <MuscleOverlay workoutId={activeWorkoutId} />
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { WorkoutPlan, WorkoutExercise } from '../types';
 
 const STORAGE_KEY = 'ft:workouts';
+const ACTIVE_KEY = 'ft:active-workout';
 
 function loadFromStorage(): WorkoutPlan[] {
   if (typeof window === 'undefined') return [];
@@ -16,6 +17,15 @@ function loadFromStorage(): WorkoutPlan[] {
   }
 }
 
+function loadActiveId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(ACTIVE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function saveToStorage(plans: WorkoutPlan[]): void {
   if (typeof window === 'undefined') return;
   try {
@@ -25,9 +35,23 @@ function saveToStorage(plans: WorkoutPlan[]): void {
   }
 }
 
+function saveActiveId(id: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (id === null) {
+      localStorage.removeItem(ACTIVE_KEY);
+    } else {
+      localStorage.setItem(ACTIVE_KEY, id);
+    }
+  } catch {
+    // storage unavailable
+  }
+}
+
 interface WorkoutStore {
   workouts: WorkoutPlan[];
   initialized: boolean;
+  activeWorkoutId: string | null;
   init: () => void;
   addWorkout: (plan: WorkoutPlan) => void;
   updateWorkout: (id: string, updates: Partial<WorkoutPlan>) => void;
@@ -35,15 +59,21 @@ interface WorkoutStore {
   addExerciseToWorkout: (workoutId: string, exercise: WorkoutExercise) => void;
   removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => void;
   reorderExercises: (workoutId: string, exercises: WorkoutExercise[]) => void;
+  setActiveWorkout: (id: string | null) => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   workouts: [],
   initialized: false,
+  activeWorkoutId: null,
 
   init: () => {
     if (get().initialized) return;
-    set({ workouts: loadFromStorage(), initialized: true });
+    set({
+      workouts: loadFromStorage(),
+      activeWorkoutId: loadActiveId(),
+      initialized: true,
+    });
   },
 
   addWorkout: (plan) => {
@@ -95,5 +125,10 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     );
     saveToStorage(next);
     set({ workouts: next });
+  },
+
+  setActiveWorkout: (id) => {
+    saveActiveId(id);
+    set({ activeWorkoutId: id });
   },
 }));
