@@ -5,7 +5,7 @@ import { WorkoutExercise } from '@/lib/types';
 interface ExerciseSlotProps {
   exercise: WorkoutExercise;
   onRemove: (exerciseId: string) => void;
-  onUpdate: (exerciseId: string, field: 'targetSets' | 'targetReps' | 'lastWeight' | 'lastWeightDate', value: string | number | null) => void;
+  onUpdate: (exerciseId: string, updates: Partial<WorkoutExercise>) => void;
   unitSystem?: 'LBS' | 'KG';
 }
 
@@ -40,7 +40,7 @@ export default function ExerciseSlot({ exercise, onRemove, onUpdate, unitSystem 
           min={1}
           max={20}
           value={exercise.targetSets}
-          onChange={(e) => onUpdate(exercise.exerciseId, 'targetSets', parseInt(e.target.value, 10) || 1)}
+          onChange={(e) => onUpdate(exercise.exerciseId, { targetSets: parseInt(e.target.value, 10) || 1 })}
           className="w-10 bg-zinc-700 border border-zinc-600 rounded text-center text-sm font-bold text-zinc-100 tabular-nums focus:outline-none focus:border-zinc-400 py-1"
         />
       </div>
@@ -51,7 +51,7 @@ export default function ExerciseSlot({ exercise, onRemove, onUpdate, unitSystem 
         <input
           type="text"
           value={exercise.targetReps}
-          onChange={(e) => onUpdate(exercise.exerciseId, 'targetReps', e.target.value)}
+          onChange={(e) => onUpdate(exercise.exerciseId, { targetReps: e.target.value })}
           className="w-14 bg-zinc-700 border border-zinc-600 rounded text-center text-sm font-bold text-zinc-100 tabular-nums focus:outline-none focus:border-zinc-400 py-1"
           placeholder="8-12"
         />
@@ -67,8 +67,7 @@ export default function ExerciseSlot({ exercise, onRemove, onUpdate, unitSystem 
           value={exercise.lastWeight ?? ''}
           onChange={(e) => {
             const val = e.target.value === '' ? null : parseFloat(e.target.value);
-            onUpdate(exercise.exerciseId, 'lastWeight', val);
-            onUpdate(exercise.exerciseId, 'lastWeightDate', new Date().toISOString());
+            onUpdate(exercise.exerciseId, { lastWeight: val, lastWeightDate: new Date().toISOString() });
           }}
           className="w-16 bg-zinc-700 border border-zinc-600 rounded text-center text-sm font-bold text-zinc-100 tabular-nums focus:outline-none focus:border-[#E8593C] py-1 placeholder:text-zinc-600"
           placeholder="—"

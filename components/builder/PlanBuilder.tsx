@@ -90,14 +90,10 @@ export default function PlanBuilder({ onSelectWorkout }: PlanBuilderProps) {
     removeExerciseFromWorkout(selected.id, exerciseId);
   }
 
-  function handleUpdateExercise(
-    exerciseId: string,
-    field: 'targetSets' | 'targetReps' | 'lastWeight' | 'lastWeightDate',
-    value: string | number | null
-  ) {
+  function handleUpdateExercise(exerciseId: string, updates: Partial<WorkoutExercise>) {
     if (!selected) return;
     const updated = selected.exercises.map((e) =>
-      e.exerciseId === exerciseId ? { ...e, [field]: value } : e
+      e.exerciseId === exerciseId ? { ...e, ...updates } : e
     );
     reorderExercises(selected.id, updated);
   }
