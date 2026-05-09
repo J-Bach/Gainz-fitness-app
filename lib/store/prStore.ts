@@ -2,35 +2,14 @@
 
 import { create } from 'zustand';
 import { PREntry } from '../types';
-
-const STORAGE_KEY = 'ft:prs';
-
-function loadFromStorage(): PREntry[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as PREntry[];
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(prs: PREntry[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prs));
-  } catch {
-    // storage unavailable
-  }
-}
+import { supabase } from '../supabase/client';
 
 interface PRStore {
   prs: PREntry[];
   initialized: boolean;
-  init: () => void;
-  addPR: (entry: PREntry) => void;
-  deletePR: (id: string) => void;
+  init: () => Promise<void>;
+  addPR: (entry: PREntry) => Promise<void>;
+  deletePR: (id: string) => Promise<void>;
   getPRsForExercise: (exerciseId: string) => PREntry[];
 }
 
@@ -38,26 +17,45 @@ export const usePRStore = create<PRStore>((set, get) => ({
   prs: [],
   initialized: false,
 
-  init: () => {
+  init: async () => {
     if (get().initialized) return;
-    set({ prs: loadFromStorage(), initialized: true });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { set({ initialized: true }); return; }
+
+    const { data } = await supabase.from('pr_entries').select('*').eq('user_id', user.id);
+    const prs: PREntry[] = (data ?? []).map((row) => ({
+      id: row.id,
+      exerciseId: row.exercise_id,
+      exerciseName: row.exercise_name,
+      weight: row.weight,
+      unitSystem: row.unit_system,
+      date: row.date,
+    }));
+    set({ prs, initialized: true });
   },
 
-  addPR: (entry) => {
-    const next = [...get().prs, entry];
-    saveToStorage(next);
-    set({ prs: next });
+  addPR: async (entry) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('pr_entries').insert({
+      id: entry.id,
+      user_id: user.id,
+      exercise_id: entry.exerciseId,
+      exercise_name: entry.exerciseName,
+      weight: entry.weight,
+      unit_system: entry.unitSystem,
+      date: entry.date,
+    });
+    set({ prs: [...get().prs, entry] });
   },
 
-  deletePR: (id) => {
-    const next = get().prs.filter((p) => p.id !== id);
-    saveToStorage(next);
-    set({ prs: next });
+  deletePR: async (id) => {
+    await supabase.from('pr_entries').delete().eq('id', id);
+    set({ prs: get().prs.filter((p) => p.id !== id) });
   },
 
-  getPRsForExercise: (exerciseId) => {
-    return get()
-      .prs.filter((p) => p.exerciseId === exerciseId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  },
+  getPRsForExercise: (exerciseId) =>
+    get().prs
+      .filter((p) => p.exerciseId === exerciseId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
 }));

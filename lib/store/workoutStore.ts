@@ -1,20 +1,13 @@
 'use client';
 
 import { create } from 'zustand';
-import { WorkoutPlan, WorkoutExercise } from '../types';
+import { WorkoutPlan, WorkoutExercise, SplitCategory } from '../types';
+import { supabase } from '../supabase/client';
 
-const STORAGE_KEY = 'ft:workouts';
-const ACTIVE_KEY = 'ft:active-workout';
-
+// Keep migration for safety
 function migrateWorkout(w: Record<string, unknown>): WorkoutPlan {
-  // Migrate split (string) → splits (array)
-  if (!w.splits && w.split) {
-    w.splits = [w.split];
-  }
-  if (!Array.isArray(w.splits)) {
-    w.splits = ['PUSH'];
-  }
-  // Ensure exercises have lastWeight / lastWeightDate fields
+  if (!w.splits && w.split) w.splits = [w.split as SplitCategory];
+  if (!Array.isArray(w.splits)) w.splits = ['PUSH'];
   if (Array.isArray(w.exercises)) {
     w.exercises = (w.exercises as Record<string, unknown>[]).map((ex) => ({
       lastWeight: null,
@@ -25,61 +18,31 @@ function migrateWorkout(w: Record<string, unknown>): WorkoutPlan {
   return w as unknown as WorkoutPlan;
 }
 
-function loadFromStorage(): WorkoutPlan[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Record<string, unknown>[];
-    return parsed.map(migrateWorkout);
-  } catch {
-    return [];
-  }
-}
-
-function loadActiveId(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem(ACTIVE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function saveToStorage(plans: WorkoutPlan[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
-  } catch {
-    // storage unavailable
-  }
-}
-
-function saveActiveId(id: string | null): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (id === null) {
-      localStorage.removeItem(ACTIVE_KEY);
-    } else {
-      localStorage.setItem(ACTIVE_KEY, id);
-    }
-  } catch {
-    // storage unavailable
-  }
+function rowToWorkout(row: Record<string, unknown>): WorkoutPlan {
+  return migrateWorkout({
+    id: row.id,
+    name: row.name,
+    splits: row.splits,
+    status: row.status,
+    date: row.date ?? null,
+    exercises: row.exercises ?? [],
+    createdAt: row.created_at,
+    lockedAt: row.locked_at ?? null,
+  });
 }
 
 interface WorkoutStore {
   workouts: WorkoutPlan[];
   initialized: boolean;
   activeWorkoutId: string | null;
-  init: () => void;
-  addWorkout: (plan: WorkoutPlan) => void;
-  updateWorkout: (id: string, updates: Partial<WorkoutPlan>) => void;
-  deleteWorkout: (id: string) => void;
-  addExerciseToWorkout: (workoutId: string, exercise: WorkoutExercise) => void;
-  removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => void;
-  reorderExercises: (workoutId: string, exercises: WorkoutExercise[]) => void;
-  setActiveWorkout: (id: string | null) => void;
+  init: () => Promise<void>;
+  addWorkout: (plan: WorkoutPlan) => Promise<void>;
+  updateWorkout: (id: string, updates: Partial<WorkoutPlan>) => Promise<void>;
+  deleteWorkout: (id: string) => Promise<void>;
+  addExerciseToWorkout: (workoutId: string, exercise: WorkoutExercise) => Promise<void>;
+  removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => Promise<void>;
+  reorderExercises: (workoutId: string, exercises: WorkoutExercise[]) => Promise<void>;
+  setActiveWorkout: (id: string | null) => Promise<void>;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
@@ -87,68 +50,85 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   initialized: false,
   activeWorkoutId: null,
 
-  init: () => {
+  init: async () => {
     if (get().initialized) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { set({ initialized: true }); return; }
+
+    const [{ data: plans }, { data: active }] = await Promise.all([
+      supabase.from('workout_plans').select('*').eq('user_id', user.id),
+      supabase.from('active_workout').select('workout_id').eq('user_id', user.id).maybeSingle(),
+    ]);
+
     set({
-      workouts: loadFromStorage(),
-      activeWorkoutId: loadActiveId(),
+      workouts: (plans ?? []).map(rowToWorkout),
+      activeWorkoutId: active?.workout_id ?? null,
       initialized: true,
     });
   },
 
-  addWorkout: (plan) => {
-    const next = [...get().workouts, plan];
-    saveToStorage(next);
-    set({ workouts: next });
-  },
-
-  updateWorkout: (id, updates) => {
-    const next = get().workouts.map((w) =>
-      w.id === id ? { ...w, ...updates } : w
-    );
-    saveToStorage(next);
-    set({ workouts: next });
-  },
-
-  deleteWorkout: (id) => {
-    const next = get().workouts.filter((w) => w.id !== id);
-    saveToStorage(next);
-    set({ workouts: next });
-  },
-
-  addExerciseToWorkout: (workoutId, exercise) => {
-    const next = get().workouts.map((w) => {
-      if (w.id !== workoutId) return w;
-      return { ...w, exercises: [...w.exercises, exercise] };
+  addWorkout: async (plan) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('workout_plans').insert({
+      id: plan.id,
+      user_id: user.id,
+      name: plan.name,
+      splits: plan.splits,
+      status: plan.status,
+      date: plan.date,
+      exercises: plan.exercises,
+      created_at: plan.createdAt,
+      locked_at: plan.lockedAt,
     });
-    saveToStorage(next);
-    set({ workouts: next });
+    set({ workouts: [...get().workouts, plan] });
   },
 
-  removeExerciseFromWorkout: (workoutId, exerciseId) => {
-    const next = get().workouts.map((w) => {
-      if (w.id !== workoutId) return w;
-      return {
-        ...w,
-        exercises: w.exercises
-          .filter((e) => e.exerciseId !== exerciseId)
-          .map((e, i) => ({ ...e, order: i })),
-      };
-    });
-    saveToStorage(next);
-    set({ workouts: next });
+  updateWorkout: async (id, updates) => {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.splits !== undefined) dbUpdates.splits = updates.splits;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.date !== undefined) dbUpdates.date = updates.date;
+    if (updates.exercises !== undefined) dbUpdates.exercises = updates.exercises;
+    if (updates.lockedAt !== undefined) dbUpdates.locked_at = updates.lockedAt;
+
+    await supabase.from('workout_plans').update(dbUpdates).eq('id', id);
+    set({ workouts: get().workouts.map((w) => w.id === id ? { ...w, ...updates } : w) });
   },
 
-  reorderExercises: (workoutId, exercises) => {
-    const next = get().workouts.map((w) =>
-      w.id === workoutId ? { ...w, exercises } : w
-    );
-    saveToStorage(next);
-    set({ workouts: next });
+  deleteWorkout: async (id) => {
+    await supabase.from('workout_plans').delete().eq('id', id);
+    set({ workouts: get().workouts.filter((w) => w.id !== id) });
   },
 
-  setActiveWorkout: (id) => {
-    saveActiveId(id);
+  addExerciseToWorkout: async (workoutId, exercise) => {
+    const workout = get().workouts.find((w) => w.id === workoutId);
+    if (!workout) return;
+    const exercises = [...workout.exercises, exercise];
+    await supabase.from('workout_plans').update({ exercises }).eq('id', workoutId);
+    set({ workouts: get().workouts.map((w) => w.id === workoutId ? { ...w, exercises } : w) });
+  },
+
+  removeExerciseFromWorkout: async (workoutId, exerciseId) => {
+    const workout = get().workouts.find((w) => w.id === workoutId);
+    if (!workout) return;
+    const exercises = workout.exercises
+      .filter((e) => e.exerciseId !== exerciseId)
+      .map((e, i) => ({ ...e, order: i }));
+    await supabase.from('workout_plans').update({ exercises }).eq('id', workoutId);
+    set({ workouts: get().workouts.map((w) => w.id === workoutId ? { ...w, exercises } : w) });
+  },
+
+  reorderExercises: async (workoutId, exercises) => {
+    await supabase.from('workout_plans').update({ exercises }).eq('id', workoutId);
+    set({ workouts: get().workouts.map((w) => w.id === workoutId ? { ...w, exercises } : w) });
+  },
+
+  setActiveWorkout: async (id) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('active_workout').upsert({ user_id: user.id, workout_id: id });
     set({ activeWorkoutId: id });
   },
 }));
