@@ -6,12 +6,32 @@ import { WorkoutPlan, WorkoutExercise } from '../types';
 const STORAGE_KEY = 'ft:workouts';
 const ACTIVE_KEY = 'ft:active-workout';
 
+function migrateWorkout(w: Record<string, unknown>): WorkoutPlan {
+  // Migrate split (string) → splits (array)
+  if (!w.splits && w.split) {
+    w.splits = [w.split];
+  }
+  if (!Array.isArray(w.splits)) {
+    w.splits = ['PUSH'];
+  }
+  // Ensure exercises have lastWeight / lastWeightDate fields
+  if (Array.isArray(w.exercises)) {
+    w.exercises = (w.exercises as Record<string, unknown>[]).map((ex) => ({
+      lastWeight: null,
+      lastWeightDate: null,
+      ...ex,
+    }));
+  }
+  return w as unknown as WorkoutPlan;
+}
+
 function loadFromStorage(): WorkoutPlan[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as WorkoutPlan[];
+    const parsed = JSON.parse(raw) as Record<string, unknown>[];
+    return parsed.map(migrateWorkout);
   } catch {
     return [];
   }
