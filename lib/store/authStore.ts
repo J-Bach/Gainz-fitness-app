@@ -8,7 +8,8 @@ interface AuthStore {
   user: User | null;
   loading: boolean;
   init: () => Promise<void>;
-  signInWithEmail: (email: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -29,11 +30,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
     });
   },
 
-  signInWithEmail: async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '' },
-    });
+  signIn: async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
+  },
+
+  signUp: async (email, password) => {
+    const { error } = await supabase.auth.signUp({ email, password });
     return { error: error?.message ?? null };
   },
 
