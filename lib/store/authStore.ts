@@ -17,11 +17,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
   loading: true,
 
   init: async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    set({ user: session?.user ?? null, loading: false });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      set({ user: session?.user ?? null, loading: false });
+    } catch {
+      set({ user: null, loading: false });
+    }
 
     supabase.auth.onAuthStateChange((_event, session) => {
-      set({ user: session?.user ?? null });
+      set({ user: session?.user ?? null, loading: false });
     });
   },
 

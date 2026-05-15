@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import BottomNav from '@/components/nav/BottomNav';
 import AuthGate from '@/components/auth/AuthGate';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'Fitness Tracker',
@@ -16,12 +17,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-zinc-950 text-zinc-100 min-h-screen font-sans antialiased">
-        <AuthGate>
-          <div className="relative min-h-screen pb-20">
-            {children}
-          </div>
-          <BottomNav />
-        </AuthGate>
+        <ErrorBoundary>
+          <AuthGate>
+            <div className="relative min-h-screen pb-20">
+              {children}
+            </div>
+            <BottomNav />
+          </AuthGate>
+        </ErrorBoundary>
       </body>
     </html>
   );
