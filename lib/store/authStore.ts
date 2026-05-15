@@ -28,7 +28,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signInWithEmail: async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '' },
+      options: { emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '' },
     });
     return { error: error?.message ?? null };
   },
