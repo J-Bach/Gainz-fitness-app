@@ -9,6 +9,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => { init(); }, [init]);
@@ -33,7 +34,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           {/* Mode toggle */}
           <div className="flex bg-zinc-900 rounded-xl p-1">
             <button
-              onClick={() => { setMode('signin'); setError(null); }}
+              onClick={() => { setMode('signin'); setError(null); setSuccess(null); }}
               className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
                 mode === 'signin' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500'
               }`}
@@ -41,7 +42,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               Sign in
             </button>
             <button
-              onClick={() => { setMode('signup'); setError(null); }}
+              onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
               className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
                 mode === 'signup' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500'
               }`}
@@ -55,9 +56,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               e.preventDefault();
               setSubmitting(true);
               setError(null);
-              const fn = mode === 'signin' ? signIn : signUp;
-              const { error } = await fn(email, password);
-              if (error) setError(error);
+              if (mode === 'signin') {
+                const { error } = await signIn(email, password);
+                if (error) setError(error);
+              } else {
+                const { error } = await signUp(email, password);
+                if (error) {
+                  setError(error);
+                } else {
+                  setSuccess('Account created — you can now sign in.');
+                  setMode('signin');
+                }
+              }
               setSubmitting(false);
             }}
             className="space-y-3"
@@ -79,6 +89,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               placeholder="Password (min 6 characters)"
               className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-[#E8593C] transition-colors"
             />
+            {success && <p className="text-xs text-emerald-400">{success}</p>}
             {error && <p className="text-xs text-red-400">{error}</p>}
             <button
               type="submit"
