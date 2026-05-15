@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useWorkoutStore } from '@/lib/store/workoutStore';
 import { WorkoutPlan, SplitCategory, WorkoutExercise } from '@/lib/types';
-import { EXERCISES } from '@/lib/data/exercises';
+import { useExerciseStore } from '@/lib/store/exerciseStore';
 import SplitSelector from './SplitSelector';
 import ExerciseSlot from './ExerciseSlot';
 
@@ -20,6 +20,7 @@ interface PlanBuilderProps {
 export default function PlanBuilder({ onSelectWorkout }: PlanBuilderProps) {
   const { workouts, init, addWorkout, updateWorkout, deleteWorkout, removeExerciseFromWorkout, reorderExercises, addExerciseToWorkout, activeWorkoutId, setActiveWorkout } =
     useWorkoutStore();
+  const { exercises, init: initExercises } = useExerciseStore();
 
   // Inline exercise picker state
   const [showPicker, setShowPicker] = useState(false);
@@ -34,7 +35,8 @@ export default function PlanBuilder({ onSelectWorkout }: PlanBuilderProps) {
 
   useEffect(() => {
     init();
-  }, [init]);
+    initExercises();
+  }, [init, initExercises]);
 
   // Notify parent about restored activeWorkoutId after init
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function PlanBuilder({ onSelectWorkout }: PlanBuilderProps) {
 
   // Picker filtered exercises
   const pickerExercises = useMemo(() => {
-    return EXERCISES.filter((ex) => {
+    return exercises.filter((ex) => {
       if (pickerSplit !== 'ALL' && ex.split !== pickerSplit) return false;
       if (pickerSearch) {
         const q = pickerSearch.toLowerCase();
@@ -58,7 +60,7 @@ export default function PlanBuilder({ onSelectWorkout }: PlanBuilderProps) {
       }
       return true;
     });
-  }, [pickerSplit, pickerSearch]);
+  }, [exercises, pickerSplit, pickerSearch]);
 
   function handleNewWorkout() {
     const plan: WorkoutPlan = {
@@ -106,7 +108,7 @@ export default function PlanBuilder({ onSelectWorkout }: PlanBuilderProps) {
 
   function handlePickerAdd(exerciseId: string) {
     if (!selected) return;
-    const ex = EXERCISES.find((e) => e.id === exerciseId);
+    const ex = exercises.find((e) => e.id === exerciseId);
     if (!ex) return;
     const we: WorkoutExercise = {
       exerciseId: ex.id,

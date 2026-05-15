@@ -65,3 +65,32 @@ create policy "Users manage own active_workout"
   on active_workout for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- exercises: seeded from wger API, public read-only
+create table if not exists exercises (
+  id text primary key,
+  name text not null,
+  split text not null,
+  primary_muscle text not null,
+  secondary_muscles text[] not null default '{}',
+  equipment text not null,
+  difficulty text not null default 'INTERMEDIATE',
+  default_sets int not null default 3,
+  default_reps text not null default '8-12',
+  notes text
+);
+
+-- Public read, no auth required (exercise data is not user-specific)
+alter table exercises enable row level security;
+
+create policy "Exercises are publicly readable"
+  on exercises for select
+  using (true);
+
+create policy "Exercises are insertable by anon for seeding"
+  on exercises for insert
+  with check (true);
+
+create policy "Exercises are updatable by anon for seeding"
+  on exercises for update
+  using (true);

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { EXERCISES } from '@/lib/data/exercises';
 import { Exercise, SplitCategory, MuscleGroup, Equipment, WorkoutExercise, WorkoutPlan } from '@/lib/types';
 import LibraryFilters from '@/components/library/LibraryFilters';
 import LibraryGrid from '@/components/library/LibraryGrid';
 import { useWorkoutStore } from '@/lib/store/workoutStore';
+import { useExerciseStore } from '@/lib/store/exerciseStore';
 
 function generateId(): string {
   return `wp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -13,6 +13,7 @@ function generateId(): string {
 
 export default function LibraryPage() {
   const { workouts, init, addWorkout, addExerciseToWorkout } = useWorkoutStore();
+  const { exercises, init: initExercises } = useExerciseStore();
 
   const [split, setSplit] = useState<SplitCategory | 'ALL'>('ALL');
   const [muscle, setMuscle] = useState<MuscleGroup | ''>('');
@@ -27,12 +28,13 @@ export default function LibraryPage() {
 
   useEffect(() => {
     init();
-  }, [init]);
+    initExercises();
+  }, [init, initExercises]);
 
   const draftWorkouts = workouts.filter((w) => w.status === 'DRAFT');
 
   const filtered = useMemo(() => {
-    return EXERCISES.filter((ex) => {
+    return exercises.filter((ex: Exercise) => {
       if (split !== 'ALL' && ex.split !== split) return false;
       if (muscle && ex.primaryMuscle !== muscle && !ex.secondaryMuscles.includes(muscle)) return false;
       if (equipment && ex.equipment !== equipment) return false;
@@ -42,7 +44,7 @@ export default function LibraryPage() {
       }
       return true;
     });
-  }, [split, muscle, equipment, search]);
+  }, [exercises, split, muscle, equipment, search]);
 
   function openModal(exercise: Exercise) {
     setPendingExercise(exercise);
